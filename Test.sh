@@ -1,8 +1,6 @@
 #!/bin/bash
 menu_choice=""
 record_file="bookRecords.ldb"
-temp_file=/tmp/ldb.$$
-trap 'rm -f $temp_file' EXIT
 
 get_return(){
   printf '\tPress return\n'
@@ -11,7 +9,7 @@ get_return(){
 }
  
 get_confirm(){
-  printf '\tAre you sure?\n'
+  printf '\tAre you sure?[y/n]\n'
   while true
   do
     read x
@@ -33,7 +31,7 @@ set_menu_choice(){
   printf '\tb) Find Books\n'
   printf '\tc) Edit Books\n'
   printf '\td) Remove Books\n'
-  printf '\te) View Books\n'
+  printf '\te) View all books\n'
   printf '\tf) Quit\n'
   printf 'Please enter the choice then press return\n'
   read menu_choice
@@ -52,15 +50,15 @@ add_books(){
   #prompt for information  
   printf 'Enter Books category:-'
   read tmp
-  liCatNum=${tmp%%,*}
+  liCatNum=$tmp
   
   printf 'Enter Books title:-'
   read tmp
-  liTitleNum=${tmp%%,*}
+  liTitleNum=$tmp
   
-  printf 'Enter Auther Name:-'
+  printf 'Enter Author Name:-'
   read tmp
-  liAutherNum=${tmp%%,*}
+  liAutherNum=$tmp
   
   #Check that they want to enter the information
   printf 'About to add new entry\n'
@@ -69,16 +67,14 @@ add_books(){
   #If confirmed then append it to the record file
   if get_confirm; then
     insert_record $liCatNum,$liTitleNum,$liAutherNum
-  fi
-  
+  fi  
   return
 }
 
 find_books(){
-  read -p "Enter the title of the book : " findBook
-  grep $findBook $record_file > $temp_file
-      
-    set $(wc -l $temp_file)
+  read -p "Enter a string related to the book : " findBook
+  grep $findBook $record_file > temp_file
+    set $(wc -l temp_file)
     linesfound=$1
   
     case "$linesfound" in
@@ -87,16 +83,16 @@ find_books(){
           return 0
           ;;
     *)    echo "Found the following"
-          cat $temp_file
+          cat temp_file
           get_return
           return 0
     esac
   return
 }
 
-$temp_file
+
 remove_books(){
-  set $(wc -l $temp_file)
+  set $(wc -l $record_file)
     linesfound=$1
 
     case "$linesfound" in
@@ -105,7 +101,7 @@ remove_books(){
           return 0
           ;;
     *)    echo "Found the following\n"
-          cat $temp_file ;;
+          cat $record_file ;;
         esac
   printf "Type the books title which you want to delete\n"
   read searchstr
@@ -113,35 +109,43 @@ remove_books(){
   if [ "$searchstr" = "" ]; then
       return 0
     fi
-  grep -v "$searchstr" $record_file > $temp_file
-  mv $temp_file $record_file
+  grep -v "$searchstr" $record_file > temp_file
+  mv temp_file $record_file
   printf "Book has been removed\n"
   get_return
   return
 }
  
 view_books(){
+  entries=`cat $record_file`
+  len=${#entries}
+  if [ $len == 0 ]
+  then
+    echo "No books stored yet. Make entry first"
+    get_return
+  else
   printf "List of books are\n"  
   cat $record_file
   get_return
+  fi
   return
 }
 
 edit_books(){ 
-  printf "list of books are\n"
+  printf "List of books are\n"
   cat $record_file
-  printf "Type the tile of book you want to edit\n"
+  printf "Type the title of book you want to edit\n"
   read searchstr
     if [ "$searchstr" = "" ]; then
       return 0
     fi
-    grep -v "$searchstr" $record_file > $temp_file
-    mv $temp_file $record_file
-  printf "Enter the new record"
+    grep -v "$searchstr" $record_file > temp_file
+    mv temp_file $record_file
+  printf "Enter the new records\n"
   add_books 
 }
 
-rm -f $temp_file
+rm -f temp_file
 if [!-f $record_file];then
 touch $record_file
 fi
@@ -167,9 +171,8 @@ f) quit=y;;
 *) printf "Sorry, choice not recognized";;
 esac
 done
-
 # Tidy up and leave 
-rm -f $temp_file
+rm -f temp_file
 echo "Finished"
  
 exit 0

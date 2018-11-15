@@ -1,14 +1,70 @@
 #!/bin/bash
 menu_choice=""
-record_file="bookRecords.ldb"
+booksData="bookRecords.ldb"
+if [ ! -f borrowed.txt ]
+then
+	echo -n "" > borrowed.txt
+fi
 
-get_return(){
+borrowBook(){
+  set $(wc -l $booksData)
+  linesfound=$1
+
+  case "$linesfound" in
+  0) echo "Sorry, nothing found\n"
+     getEnter
+     return 0
+     ;;
+  *) echo "Found the following\n"
+     cat $booksData ;;
+    esac
+  printf "Enter name of the borrower: "
+  read name
+  if [ -z "$name" ]
+  then
+  	return 0
+  fi
+
+  printf "Type the Title/Genre/author of Book(s) which is to be borrowed: "
+  read searchstr
+
+  if [ "$searchstr" = "" ]; then
+    return 0
+  fi
+  found=`grep "$searchstr" $booksData`
+  if [ ${#found} -eq 0 ]
+  then
+  	echo "Book does not exist."
+  fi
+  for i in $found
+  do
+  	echo "Is this the book you want to borrow?"
+  	echo $i
+  	read -p "y/n: " ans
+  	case $ans in
+  		y|Y|yes|YES|Yes) bdate=`date "+%d-%m-%Y"`
+						 time=`date "+%H:%M"`
+						 echo "Entry to be made: "
+						 printf "$name\t$i\t$bdate\t$time\n"
+						 printf "$name\t$i\t$bdate\t$time\n" >> borrowed.txt 
+						 ;;
+		*)break;;
+	  esac
+  done
+  grep -v "$searchstr" $booksData > temp_file
+  mv temp_file $booksData
+  #printf "Book has been removed\n"
+  getEnter
+  return
+}
+
+getEnter(){
   printf '\tPress return\n'
   read x
   return 0
 }
  
-get_confirm(){
+confirm(){
   printf '\tAre you sure?[y/n]\n'
   while true
   do
@@ -23,31 +79,28 @@ get_confirm(){
     esac
   done
 }
-set_menu_choice(){
+menu(){
   clear
   printf 'Options:-'
   printf '\n'
   printf '\ta) Add new Books records\n'
   printf '\tb) Find Books\n'
   printf '\tc) Edit Books\n'
-  printf '\td) Remove Books\n'
-  printf '\te) View all books\n'
-  printf '\tf) Quit\n'
+  printf '\td) Borrow book(s)\n'
+  printf '\te) View list of Borrowed books\n'
+  printf '\tf) View all available books\n'
+  printf '\tg) Quit\n'
   printf 'Please enter the choice then press return\n'
   read menu_choice
   return
 }
 
-insert_record(){
-  echo $* >>$record_file
+insertRecord(){
+  echo $* >>$booksData
   return
 } 
  
-#!!!!!!!!!...........................!!!!!!!!!!!!!!!!
-#This function ask user for details information about book for keeping records
- 
-add_books(){ 
-  #prompt for information  
+addBook(){ 
   printf 'Enter Books category:-'
   read tmp
   liCatNum=$tmp
@@ -60,94 +113,81 @@ add_books(){
   read tmp
   liAutherNum=$tmp
   
-  #Check that they want to enter the information
   printf 'About to add new entry\n'
   printf "$liCatNum\t$liTitleNum\t$liAutherNum\n"
   
-  #If confirmed then append it to the record file
-  if get_confirm; then
-    insert_record $liCatNum,$liTitleNum,$liAutherNum
+  if confirm; then
+    insertRecord $liCatNum,$liTitleNum,$liAutherNum
   fi  
   return
 }
 
-find_books(){
+findBook(){
   read -p "Enter a string related to the book : " findBook
-  grep $findBook $record_file > temp_file
+  grep $findBook $booksData > temp_file
     set $(wc -l temp_file)
     linesfound=$1
   
     case "$linesfound" in
     0)    echo "Sorry, nothing found"
-          get_return
+          getEnter
           return 0
           ;;
     *)    echo "Found the following"
           cat temp_file
-          get_return
+          getEnter
           return 0
     esac
   return
 }
 
-
-remove_books(){
-  set $(wc -l $record_file)
-    linesfound=$1
-
-    case "$linesfound" in
-    0)    echo "Sorry, nothing found\n"
-          get_return
-          return 0
-          ;;
-    *)    echo "Found the following\n"
-          cat $record_file ;;
-        esac
-  printf "Type the books title which you want to delete\n"
-  read searchstr
-
-  if [ "$searchstr" = "" ]; then
-      return 0
-    fi
-  grep -v "$searchstr" $record_file > temp_file
-  mv temp_file $record_file
-  printf "Book has been removed\n"
-  get_return
-  return
-}
- 
-view_books(){
-  entries=`cat $record_file`
+viewBorrowedBooks(){
+  entries=`cat borrowed.txt`
   len=${#entries}
   if [ $len == 0 ]
   then
-    echo "No books stored yet. Make entry first"
-    get_return
+    echo "No books stored yet. Make entry first."
+    getEnter
   else
-  printf "List of books are\n"  
-  cat $record_file
-  get_return
+  printf "List of Borrowed books are:\n"  
+  cat borrowed.txt
+  getEnter
+  fi
+  return
+}
+ 
+viewBooks(){
+  entries=`cat $booksData`
+  len=${#entries}
+  if [ $len == 0 ]
+  then
+    echo "No books stored yet. Make entry first."
+    getEnter
+  else
+  printf "List of books are:\n"  
+  cat $booksData
+  getEnter
   fi
   return
 }
 
-edit_books(){ 
+editBook(){ 
   printf "List of books are\n"
-  cat $record_file
+  cat $booksData
   printf "Type the title of book you want to edit\n"
   read searchstr
     if [ "$searchstr" = "" ]; then
       return 0
     fi
-    grep -v "$searchstr" $record_file > temp_file
-    mv temp_file $record_file
+    grep -v "$searchstr" $booksData > temp_file
+    mv temp_file $booksData
   printf "Enter the new records\n"
-  add_books 
+  addBook 
 }
 
 rm -f temp_file
-if [!-f $record_file];then
-touch $record_file
+if [!-f $booksData];then
+touch $booksData
 fi
  
 clear
@@ -158,20 +198,20 @@ sleep 1
 quit="n"
 while [ "$quit" != "y" ];
 do
- 
-#funtion call for choice
-set_menu_choice
-case "$menu_choice" in
-a) add_books;;
-b) find_books;;
-c) edit_books;;
-d) remove_books;;
-e) view_books;;
-f) quit=y;;
-*) printf "Sorry, choice not recognized";;
-esac
+  #funtion call for choice
+  menu
+  case "$menu_choice" in
+  a) addBook;;
+  b) findBook;;
+  c) editBook;;
+  d) borrowBook;;
+  e) viewBorrowedBooks;;
+  f) viewBooks;;
+  g) quit=y;;
+  *) printf "Sorry, choice not recognized";;
+  esac
 done
-# Tidy up and leave 
+ 
 rm -f temp_file
 echo "Finished"
  
